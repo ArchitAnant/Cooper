@@ -46,14 +46,14 @@ class MicroSpeechDSCNN(nn.Module):
         
         # Initial standard convolution to extract base features
         # Input shape: [Batch, 1, 10 (freq), 49 (time)]
-        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(32)
         self.relu = nn.ReLU(inplace=True)
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
         
         # Stack 5 DS-CNN Layers (Highly parameter efficient, fits in 12KB-64KB SRAM)
-        self.ds_conv1 = DSCNNBlock(16, 32)
-        self.ds_conv2 = DSCNNBlock(32, 32)
+        self.ds_conv1 = DSCNNBlock(32, 64)
+        self.ds_conv2 = DSCNNBlock(64, 32)
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
         
         self.ds_conv3 = DSCNNBlock(32, 32)

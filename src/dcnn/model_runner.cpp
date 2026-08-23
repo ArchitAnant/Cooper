@@ -18,8 +18,8 @@ using executorch::aten::TensorImpl;
 using ScalarType = executorch::runtime::etensor::ScalarType;
 
 // --- 1. Memory Pools (Moved from header) ---
-static uint8_t method_allocator_pool[20 * 1024];
-static uint8_t activation_pool[64 * 1024];
+static uint8_t method_allocator_pool[48 * 1024];
+static uint8_t activation_pool[126 * 1024];
 
 // --- 2. Global Pointers (Lifetimes fix) ---
 std::unique_ptr<Program> program_ptr;
