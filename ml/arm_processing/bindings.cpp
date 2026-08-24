@@ -34,8 +34,8 @@ PYBIND11_MODULE(arm_processing_bind, m) {
                                  py::array_t<float, py::array::c_style | py::array::forcecast> audio_in) {
             py::buffer_info in_buf = audio_in.request();
             
-            if (in_buf.ndim != 1 || in_buf.shape[0] < N_FFT) {
-                throw std::runtime_error("Input audio frame must have at least N_FFT (480) samples");
+            if (in_buf.ndim != 1 || in_buf.shape[0] < 512) {
+                throw std::runtime_error("Input audio frame must have at least FFT_SIZE (512) samples");
             }
 
             // Allocate output NumPy array of shape (NUM_MFCC,)
@@ -52,24 +52,26 @@ PYBIND11_MODULE(arm_processing_bind, m) {
     // 3. High-Level Helper: compute_mfcc (Matches PyTorch torchaudio.transforms.MFCC)
     // -------------------------------------------------------------
     m.def("compute_mfcc", [](py::array_t<float, py::array::c_style | py::array::forcecast> audio,
-                             int hop_length = 320,
-                             int n_fft = 480) {
+                         int hop_length = 320,
+                         int n_fft = 512) {
         py::buffer_info buf = audio.request();
-        if (buf.ndim != 1) {
+        
+        // Support shape (N,) or (1, N)
+        if (buf.ndim == 2 && buf.shape[0] == 1) {
+            // Automatically accept (1, N) by treating length as shape[1]
+        } else if (buf.ndim != 1) {
             throw std::runtime_error("Input audio must be 1-dimensional");
         }
 
         const float* audio_ptr = static_cast<const float*>(buf.ptr);
-        size_t total_samples = buf.shape[0];
+        size_t total_samples = (buf.ndim == 2) ? buf.shape[1] : buf.shape[0];
 
         if (total_samples < static_cast<size_t>(n_fft)) {
             throw std::runtime_error("Audio is too short for the specified FFT window size");
         }
 
-        // Calculate total time frames (matching center=False in PyTorch)
         size_t num_frames = (total_samples - n_fft) / hop_length + 1;
 
-        // Create 2D output array: Shape (NUM_MFCC, num_frames) -> (10, 49)
         auto mfcc_output = py::array_t<float>({(size_t)NUM_MFCC, num_frames});
         py::buffer_info out_buf = mfcc_output.request();
         float* out_ptr = static_cast<float*>(out_buf.ptr);
@@ -77,12 +79,10 @@ PYBIND11_MODULE(arm_processing_bind, m) {
         MFCCExtractor extractor;
         std::vector<float> temp_frame_mfcc(NUM_MFCC);
 
-        // Slide window across audio
         for (size_t t = 0; t < num_frames; ++t) {
             const float* frame_start = audio_ptr + (t * hop_length);
             extractor.process_frame(frame_start, temp_frame_mfcc.data());
 
-            // Write into column 't' of the 2D matrix (shape: [NUM_MFCC, num_frames])
             for (size_t c = 0; c < NUM_MFCC; ++c) {
                 out_ptr[c * num_frames + t] = temp_frame_mfcc[c];
             }
@@ -90,5 +90,5 @@ PYBIND11_MODULE(arm_processing_bind, m) {
 
         return mfcc_output;
     }, "Computes full MFCC feature matrix matching PyTorch output [NUM_MFCC, num_frames]",
-       py::arg("audio"), py::arg("hop_length") = 320, py::arg("n_fft") = 480);
+    py::arg("audio"), py::arg("hop_length") = 320, py::arg("n_fft") = 512);
 }

@@ -12,8 +12,8 @@ processing:
 
 #define AUDIO_BUFFER_SIZE 16000 // 1s audio
 
-float16_t clip_num(float16_t val){
-    return std::max(static_cast<float16_t>(-1.0), std::min(static_cast<float16_t>(1.0), val));
+float clip_num(float val){
+    return std::max(-1.0f, std::min(1.0f, val));
 }
 
 void clip_audio(float *input_audio){

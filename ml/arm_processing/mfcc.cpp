@@ -24,7 +24,7 @@ void MFCCExtractor::process_frame(const float32_t* audio_in, float32_t* mfcc_out
     }
 
     // Apply Hann window and copy into center (indices 16 to 495)
-    arm_mult_f32(audio_in, HANN_WINDOW, &windowed_input[PAD_LEFT], N_FFT);
+    arm_mult_f32(audio_in + PAD_LEFT, HANN_WINDOW, &windowed_input[PAD_LEFT], N_FFT);
 
     // Zero out right pad (indices 496 to 511)
     for (int i = PAD_LEFT + N_FFT; i < FFT_SIZE; i++) {

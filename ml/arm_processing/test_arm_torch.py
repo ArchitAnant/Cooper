@@ -34,7 +34,8 @@ def run_verification():
     # 2. Run C++ CMSIS-DSP Pipeline
     print("[+] Running ARM CMSIS-DSP Pipeline...")
     # Passing the exact 1D numpy array, utilizing the hop_length and n_fft defaults
-    arm_mfcc = arm_dsp.compute_mfcc(raw_audio_np, hop_length=320, n_fft=512)
+    raw_audio_1d = np.ascontiguousarray(raw_audio_np.flatten(), dtype=np.float32)
+    arm_mfcc = arm_dsp.compute_mfcc(raw_audio_1d, hop_length=320, n_fft=512)
 
     # 3. Compare Results
     print("\n" + "="*40)
