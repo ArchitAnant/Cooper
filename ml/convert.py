@@ -8,8 +8,8 @@ if not hasattr(torch._inductor.utils, 'XPU_KERNEL_FORMAT'):
 from executorch.exir import to_edge
 from ml.model import MicroSpeechDSCNN, NUM_CLASSES, NUM_MFCC
 
-MODEL_PATH = "ml/models/best_kws_dscnn_32.pth"
-PTE_MODEL_PATH = "ml/models/kws_dscnn_portable_32.pte"
+MODEL_PATH = "ml/models/best_kws_dscnn_32_512.pth"
+PTE_MODEL_PATH = "ml/models/kws_dscnn_portable_32_512.pte"
 TIME_FRAMES = 49 # From 16kHz, 1s duration, 30ms window, 20ms stride
 
 model = MicroSpeechDSCNN(num_classes=NUM_CLASSES)

@@ -1,24 +1,28 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
-#include "dcnn/model_runner.h"
+#include "processing/includes/clip.h"
+#include "processing/includes/mfcc.h"
+#include "test_audio.h"  // <-- Include your exported audio
 
-int main(){
-    int ret;
+int init_runtime(void);
+int run_inference(float *input_features);
 
+static float mfcc_features[NUM_MFCC * 49];
+
+int main(void) {
     printk("[+] Boot Up\n");
-    ret = init_runtime();
-    if(ret){
-        printk("[-] Error init model\n");
-        return 0;
-    }
 
-    float temp_array[490] = {0};
-    ret = run_inference(temp_array);
-    if(ret!=-1)
-        printk("[+] successful\n");
-    else
-        printk("[-] error inference");
+    if (init_runtime()) return 0;
+    
+    mfcc_extractor_handle_t mfcc_handle = mfcc_create();
+    
+    // Use the real audio array instead of an empty buffer!
+    clip_audio(test_audio_buffer);
+    mfcc_process_clip(mfcc_handle, test_audio_buffer, mfcc_features);
 
-    printk("Exiting...");
+    run_inference(mfcc_features);
+
+    mfcc_destroy(mfcc_handle);
+    printk("[+] Exiting...\n");
     return 0;
 }
