@@ -4,8 +4,8 @@ from executorch.extension.pybindings.portable_lib import _load_for_executorch
 from executorch.exir._serialize import _deserialize_pte_binary
 
 TIME_FRAMES = 49
-MODEL_PATH = "ml/models/best_kws_dscnn_32.pth"
-PTE_MODEL_PATH = "ml/models/kws_dscnn_portable_32.pte"
+MODEL_PATH = "ml/models/best_kws_dscnn_32_512.pth"
+PTE_MODEL_PATH = "ml/models/kws_dscnn_portable_32_512.pte"
 
 print("Analyzing ExecuTorch model memory requirements...")
 

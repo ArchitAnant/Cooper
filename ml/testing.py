@@ -42,7 +42,13 @@ class DomainTestDataset(Dataset):
         self.mfcc_transform = T.MFCC(
             sample_rate=SAMPLE_RATE,
             n_mfcc=NUM_MFCC,
-            melkwargs={"n_fft": 480, "hop_length": 320, "n_mels": 40, "center": False}
+            melkwargs={
+                "n_fft": 512,          # 512-point FFT grid matching CMSIS-DSP
+                "win_length": 480,     # 30ms window matching HANN_WINDOW[480]
+                "hop_length": 320,     # 20ms stride
+                "n_mels": 40,
+                "center": False
+            }
         )
 
     def __len__(self):

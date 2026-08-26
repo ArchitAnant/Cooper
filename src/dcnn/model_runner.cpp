@@ -1,9 +1,10 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
-#include "model.h"
-#include "const.hpp"
-#include "model_runner.h"
+#include "includes/model.h"
+#include "includes/const.hpp"
+#include "includes/model_runner.h"
+#include <cmath>
 #include <memory>
 #include <executorch/extension/data_loader/buffer_data_loader.h>
 #include <executorch/runtime/core/portable_type/scalar_type.h>
@@ -90,21 +91,33 @@ int run_inference(float* input_data) {
 
     size_t num_classes = output.numel();
 
+    // 1. Find the maximum logit (raw score) for numerical stability
+    float max_logit = output_data[0];
     int max_idx = 0;
-    float max_score = output_data[0];
-
-    for(size_t i = 0; i < num_classes; i++){
-        if(output_data[i] > max_score){
-            max_score = output_data[i];
+    for(size_t i = 1; i < num_classes; i++){
+        if(output_data[i] > max_logit){
+            max_logit = output_data[i];
             max_idx = (int)i;
         }
     }
 
-    printk("[+] Predicted class: %d with confidence: %f\n", max_idx, (double)max_score);
+    // 2. Compute Softmax to get the true probability of the predicted class
+    float sum_exp = 0.0f;
+    for(size_t i = 0; i < num_classes; i++){
+        sum_exp += std::exp(output_data[i] - max_logit);
+    }
+    
+    // The probability of the top class is exp(max_logit - max_logit) / sum_exp
+    // Since exp(0) is 1.0, this simplifies to 1.0 / sum_exp
+    float confidence_prob = 1.0f / sum_exp;
 
-    if (max_score >= CONFIDENCE) {
+    printk("[+] Predicted class: %d with confidence: %.2f%%\n", max_idx, (double)(confidence_prob * 100.0f));
+
+    // 3. Threshold check against true probability (0.0 to 1.0)
+    if (confidence_prob >= CONFIDENCE) {
         return max_idx;
     } else {
+        printk("[-] Prediction rejected (Confidence %.2f%% < Threshold)\n", (double)(confidence_prob * 100.0f));
         return -1;
     }
 }
