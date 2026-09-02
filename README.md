@@ -93,12 +93,6 @@ The model was evaluated on a strictly isolated test set, demonstrating excellent
 
 | Metric | Score |
 | --- | --- |
-| **Best Validation Accuracy** | 92.11%
-
- |
-| **Unseen Test Accuracy** | 92.11%
-
- |
-| **Final Test Loss** | 0.2372
-
- |
+| **Best Validation Accuracy** | 92.11%|
+| **Unseen Test Accuracy** | 92.11%|
+| **Final Test Loss** | 0.2372 |
