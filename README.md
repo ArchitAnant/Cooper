@@ -2,43 +2,55 @@
 
 Embedded Deep CNN (DCNN) keyword spotting pipeline running PyTorch models via the ExecuTorch runtime on Zephyr RTOS. Designed for bare-metal deployment on the Raspberry Pi Pico 2 with static memory planning (~126 KB RAM footprint).
 
----
-Table of Contents
+## Tabel of Contents
 - [Directory Structure](#directory-structure)
-- [Model Export Pipeline](#model-export-pipeline-ml)
+- [Model Export Pipeline](#model-export-pipeline)
+- [Host-Device Communication](#host-device-communication)
 - [Building & Flashing](#building--flashing)
-- [Serial Console & Debugging](#serial-console--debugging)
-- [MicroSpeechDSCNN: Ultra-Lightweight Keyword Spotting](#microspeechdscnn-ultra-lightweight-keyword-spotting)
-
----
+- [MicroSpeechDSCNN](#microspeechdscnn)
+  - [Architectural Highlights](#architectural-highlights)
+  - [Benchmark Performance](#benchmark-performance)
 
 ## Directory Structure
 
 ```text
 cooper/
 ├── CMakeLists.txt              # Application build rules and ExecuTorch linkage
-├── prj.conf                    # Zephyr Kconfig profile
-├── ml/                         # Training & AOT compilation pipeline
+├── comms_testing.py            # High-speed UART test script for audio payloads
+├── ml/                         # Training, processing bindings & AOT compilation
+│   ├── arm_processing/         # C++ MFCC/Clip bindings for Python-to-C parity
 │   ├── execuwake_training.ipynb# Model training notebook
-│   ├── model.py                # PyTorch DCNN architecture
 │   ├── convert.py              # ExecuTorch .pte export & memory planning
 │   ├── pte_to_array.py         # Flatbuffer byte array generator
 │   └── models/                 # Checkpoints (.pth) and exported flatbuffers (.pte)
 └── src/                        # Firmware execution engine
     ├── main.c                  # Application entry point
+    ├── comms/                  # UART host-device synchronization API
+    ├── processing/             # Embedded C++ audio processing (MFCC/Clip)
     └── dcnn/                   # Runtime wrapper & static memory pools
 
 ```
 
----
+## Model Export Pipeline
 
-## Model Export Pipeline (`ml/`)
+* **Train Model:** Execute `execuwake_training.ipynb` to generate `.pth` checkpoints.
 
-1. **Train Model:** Execute `execuwake_training.ipynb` to generate `models/best_kws_dscnn.pth`.
-2. **Export to ExecuTorch:** Run `convert.py` to compile the PyTorch model to flatbuffer format (`kws_dscnn_portable.pte`).
-3. **Generate C Header:** Run `pte_to_array.py` to embed the binary array directly into `src/dcnn/model.c`.
 
----
+* **Audio Preprocessing:** The `ml/arm_processing` module compiles the embedded C++ MFCC extraction into Python via pybind11, guaranteeing bit-exact feature parity between training data and live device inference.
+* **Export to ExecuTorch:** Run `convert.py` to compile the PyTorch model to flatbuffer format (`.pte`).
+
+
+* **Generate C Header:** Run `pte_to_array.py` to embed the binary array directly into `src/dcnn/model.c`.
+
+
+
+## Host-Device Communication
+
+The integrated `comms_testing.py` acts as the bridge between your host machine and the Pico.
+
+* Synchronizes with the device's `src/comms/uart_api.c` firmware via a blocking handshake byte (`0xAA`).
+* Streams exactly 16,000 float32 audio samples (64kB) to the device over a 921,600 baud UART connection.
+* Awaits the firmware's inference cycle and reads back the structured 8-byte prediction result (Class ID and Confidence).
 
 ## Building & Flashing
 
@@ -49,40 +61,31 @@ west build -p always -b rpi_pico2/rp2350a/m33 -S cdc-acm-console .
 
 ```
 
-To flash:
-
-1. Hold **BOOTSEL** while plugging in the Pico 2 via USB.
-2. Drag and drop `build/zephyr/zephyr.uf2` onto the mounted volume.
-
----
-
-## Serial Console & Debugging
-
-1. Identify the assigned serial port on macOS/Linux:
-```bash
-ls /dev/cu.usbmodem*
-
-```
+* Hold **BOOTSEL** while plugging in the Pico 2 via USB.
 
 
-2. Connect to the terminal stream:
-```bash
-minicom -D /dev/cu.usbmodem101 -b 115200
+* Drag and drop `build/zephyr/zephyr.uf2` onto the mounted volume.
 
-```
 
----
 
-## MicroSpeechDSCNN: Ultra-Lightweight Keyword Spotting
+## MicroSpeechDSCNN
 
 The `MicroSpeechDSCNN` is a highly constrained, memory-efficient acoustic model purpose-built for Always-On TinyML edge devices (e.g., microcontrollers, DSPs, and smart wearables). It processes 1-second audio clips via a lightweight 10-bin MFCC frontend (49 time frames) and is specifically optimized to execute within severe SRAM and Flash memory limits.
 
 ### Architectural Highlights
 
 * **Depthwise Separable Convolutions:** Replaces standard, computationally heavy convolutions with DS-CNN blocks. By splitting the spatial (depthwise) and channel-mixing (pointwise) operations, it dramatically reduces both parameter count and multiply-accumulate (MAC) operations.
-* **Temporal Shift Invariance:** Instead of flattening spatial dimensions into a massive, memory-heavy fully connected layer, the network utilizes **Global Average Pooling (GAP)**. This collapses the time and frequency domains, allowing the model to robustly recognize keywords regardless of exactly when they begin within the 1-second window.
-* **Extreme Bottleneck Classifier:** The network methodically funnels feature maps down to exactly **8 channels** before the final classification head. For a standard multi-class setup, the final dense layer requires fewer than 100 weights, consuming virtually zero memory to execute the final decision.
+
+
+* **Temporal Shift Invariance:** Instead of flattening spatial dimensions into a massive, memory-heavy fully connected layer, the network utilizes Global Average Pooling (GAP). This collapses the time and frequency domains, allowing the model to robustly recognize keywords regardless of exactly when they begin within the 1-second window.
+
+
+* **Extreme Bottleneck Classifier:** The network methodically funnels feature maps down to exactly 8 channels before the final classification head. For a standard multi-class setup, the final dense layer requires fewer than 100 weights, consuming virtually zero memory to execute the final decision.
+
+
 * **Deployment Ready:** Integrates 2D Batch Normalization after every convolution to stabilize training. During Edge export, these layers can be mathematically folded/fused directly into the convolutional weights for zero-cost inference.
+
+
 
 ### Benchmark Performance
 
@@ -90,6 +93,6 @@ The model was evaluated on a strictly isolated test set, demonstrating excellent
 
 | Metric | Score |
 | --- | --- |
-| **Best Validation Accuracy** | 92.11% |
-| **Unseen Test Accuracy** | 92.11% |
+| **Best Validation Accuracy** | 92.11%|
+| **Unseen Test Accuracy** | 92.11%|
 | **Final Test Loss** | 0.2372 |
