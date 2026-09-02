@@ -1,28 +1,57 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
+
+#include "comms/uart_api.h"
 #include "processing/includes/clip.h"
 #include "processing/includes/mfcc.h"
-#include "test_audio.h"  // <-- Include your exported audio
+#include "dcnn/includes/model_runner.h"
 
-int init_runtime(void);
-int run_inference(float *input_features);
+#define BUF_LEN 16000
 
 static float mfcc_features[NUM_MFCC * 49];
+float rx_buf[BUF_LEN];
 
 int main(void) {
-    printk("[+] Boot Up\n");
+    int ret;
+    uart_init();
 
-    if (init_runtime()) return 0;
+    // printk("[+] Boot Up Completed\n");
+    // printk("[+] Holding till connection.\n");
+
+    
+    // printk("[+] Connection Established.\n");
+    // printk("[+] Init Execu runtime\n");
+    
+    if (init_runtime()){
+        // printk("[-] Failed to initialize Execu runtime\n");
+        return 0;
+    }
     
     mfcc_extractor_handle_t mfcc_handle = mfcc_create();
+    // printk("[+] Entring Inference loop\n");
     
-    // Use the real audio array instead of an empty buffer!
-    clip_audio(test_audio_buffer);
-    mfcc_process_clip(mfcc_handle, test_audio_buffer, mfcc_features);
+    while(1){
+        uart_wait_for_host();
+        ret = uart_fill_rx_buf(rx_buf, BUF_LEN);
 
-    run_inference(mfcc_features);
+        if(ret < 0){
+            // printk("[-] UART receive failed: %d\n", ret);
+            continue;
+        }
 
+        // printk("[+] Data ready proceeding with prediction\n");
+
+        clip_audio(rx_buf);
+        mfcc_process_clip(mfcc_handle, rx_buf, mfcc_features);
+
+        PredResult res = run_inference(mfcc_features);
+
+        // printk("[+] Prediction Result\nclass: %d\npred : %f\n",res.class_id, res.confidence);
+        uart_send_result(res);
+
+        k_sleep(K_MSEC(10));
+    }
     mfcc_destroy(mfcc_handle);
-    printk("[+] Exiting...\n");
+    // printk("[+] Exiting...\n");
     return 0;
 }

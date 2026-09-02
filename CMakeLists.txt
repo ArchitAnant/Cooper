@@ -19,12 +19,14 @@ target_sources(app PRIVATE
     src/processing/clip.cpp
     src/processing/mfcc.cpp
     src/processing/weights.cpp
+    src/comms/uart_api.c
 )
 
 # 2. Add include directories (project headers & CMSIS include paths)
 target_include_directories(app PRIVATE 
     src/dcnn
     src/processing/includes
+    src/comms
     ${ZEPHYR_BASE}/../modules/lib/cmsis-dsp/Include
     ${ZEPHYR_BASE}/../modules/hal/cmsis/CMSIS/Core/Include
 )

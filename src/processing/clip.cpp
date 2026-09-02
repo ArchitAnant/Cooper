@@ -19,7 +19,7 @@ float clip_num(float val){
 
 void clip_audio(float *input_audio){
     if(input_audio == NULL){
-        printk("[processsing][-] Input Audio is empty\n");
+        // printk("[processsing][-] Input Audio is empty\n");
         return;
     }
 
